@@ -35,12 +35,19 @@ public class GeocodeService {
         // identify yourself per Nominatim usage policy
         headers.set("User-Agent", "campus-safety-backend/1.0 (" + (contactEmail.isBlank() ? "no-email" : contactEmail) + ")");
         HttpEntity<Void> request = new HttpEntity<>(headers);
-        ResponseEntity<String> resp = rest.exchange(url, HttpMethod.GET, request, String.class);
-        if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
-            cache.put(key, new CacheEntry(resp.getBody()));
-            return resp.getBody();
+        try {
+            ResponseEntity<String> resp = rest.exchange(url, HttpMethod.GET, request, String.class);
+            if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                cache.put(key, new CacheEntry(resp.getBody()));
+                return resp.getBody();
+            }
+            return "[]";
+        } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e1) {
+            return "[]";
+        } catch (Exception e1) {
+            return "[]";
         }
-        return null;
+
     }
 
     public String search(String q) {
