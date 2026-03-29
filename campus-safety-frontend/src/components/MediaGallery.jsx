@@ -3,7 +3,9 @@ import { useState } from "react";
 const BASE_URL = "https://campus-safety-and-incident-reporting-08jc.onrender.com";
 
 function MediaGallery({ media }) {
+  const API_BASE = "https://campus-safety-and-incident-reporting-08jc.onrender.com";
 
+const resolveMediaUrl = (item) => `${API_BASE}/api/media/${item.id}`;
   const [viewerOpen, setViewerOpen] = useState(false);
 
   if (!media || media.length === 0) {
@@ -27,7 +29,7 @@ function MediaGallery({ media }) {
 
         {visibleMedia.map((m, index) => {
 
-          const mediaUrl = `${BASE_URL}${m.fileUrl}`;
+          const mediaUrl = resolveMediaUrl(m);
 
           return (
 
@@ -93,7 +95,7 @@ function MediaGallery({ media }) {
 
             {media.map((m) => {
 
-              const mediaUrl = `${BASE_URL}${m.fileUrl}`;
+              const mediaUrl = resolveMediaUrl(m);
 
               return m.contentType?.startsWith("image") ? (
 
