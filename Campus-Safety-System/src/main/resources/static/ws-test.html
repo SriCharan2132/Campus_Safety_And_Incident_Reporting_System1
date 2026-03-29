@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Campus Safety WebSocket Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+
+<h2>WebSocket Assignment Notification Test</h2>
+
+<label>JWT Token:</label><br>
+<input type="text" id="token" style="width: 600px;" placeholder="Paste JWT token here">
+<br><br>
+
+<button onclick="connect()">Connect</button>
+<button onclick="disconnect()">Disconnect</button>
+
+<pre id="output" style="background:#000;color:#0f0;padding:10px;height:300px;overflow:auto;"></pre>
+<script>
+
+let stompClient = null;
+
+function log(message) {
+    document.getElementById("output").innerHTML += message + "\n";
+}
+
+function connect() {
+
+    const token = document.getElementById("token").value;
+
+    if (!token) {
+        alert("Paste JWT token first!");
+        return;
+    }
+
+    const socket = new SockJS("http://localhost:8081/ws");
+
+    stompClient = Stomp.over(socket);
+
+    stompClient.connect(
+        { Authorization: "Bearer " + token },
+        function (frame) {
+
+            log("✅ Connected to WebSocket");
+
+            const destination = "/user/queue/user-notifications";
+
+            stompClient.subscribe(destination, function (message) {
+
+                log("📩 LIVE NOTIFICATION RECEIVED");
+                log("Destination: " + destination);
+                log("Payload: " + message.body);
+                log("----------------------------------");
+
+            });
+
+            log("📡 Subscribed to " + destination);
+        },
+        function (error) {
+            log("❌ Connection error: " + error);
+        }
+    );
+}
+
+function disconnect() {
+    if (stompClient !== null) {
+        stompClient.disconnect();
+        log("🔌 Disconnected");
+    }
+}
+
+</script>
+
+</body>
+</html>

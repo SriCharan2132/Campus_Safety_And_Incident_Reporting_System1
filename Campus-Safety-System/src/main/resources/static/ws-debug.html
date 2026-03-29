@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>WS debug</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<h3>WebSocket debug</h3>
+Token:<br><input id="token" style="width:600px"/><br>
+<button id="connectBtn">Connect</button>
+<button id="disconnectBtn">Disconnect</button>
+<pre id="log" style="background:#000;color:#0f0;height:300px;padding:10px;overflow:auto"></pre>
+
+<script>
+function log(msg){ document.getElementById('log').textContent += msg + '\n'; }
+
+function parseJwt(token){
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(decodeURIComponent(atob(payload).split('').map(c=>'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+  } catch (e) { return null; }
+}
+
+let client = null;
+document.getElementById('connectBtn').onclick = function(){
+  const token = document.getElementById('token').value.trim();
+  if(!token){ alert('paste token'); return; }
+  const payload = parseJwt(token);
+  const email = payload ? payload.sub : 'unknown';
+  log('Connecting as: ' + email);
+
+  const sock = new SockJS('http://localhost:8081/ws');
+  client = Stomp.over(sock);
+  // reduce noise
+  client.debug = function(s) { /*console.debug(s)*/; };
+
+  client.connect({'Authorization':'Bearer '+token}, function(frame){
+    log('CONNECTED: ' + frame.headers['user-name'] ?? frame);
+    // subscribe user queue
+    client.subscribe('/user/queue/user-notifications', function(msg){
+      log('[user/queue] ' + msg.body);
+    });
+    // subscribe fallback debug topic (server sends here for debugging)
+    client.subscribe('/topic/assignments/' + email, function(msg){
+      log('[topic/assignments/' + email + '] ' + msg.body);
+    });
+    log('Subscribed to /user/queue/user-notifications and /topic/assignments/' + email);
+  }, function(err){
+    log('CONNECT ERROR: ' + err);
+  });
+};
+
+document.getElementById('disconnectBtn').onclick = function(){
+  if(client) client.disconnect(function(){ log('disconnected'); client=null; });
+};
+</script>
+</body>
+</html>

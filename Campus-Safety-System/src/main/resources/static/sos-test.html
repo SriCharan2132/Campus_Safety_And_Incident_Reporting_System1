@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SOS WebSocket Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+
+<h2>Real-Time SOS Alerts</h2>
+<ul id="alerts"></ul>
+<script>
+    var socket = new SockJS('http://localhost:8081/ws');
+    var stompClient = Stomp.over(socket);
+
+    var token = prompt("Enter JWT Token:");
+
+    stompClient.connect(
+        { Authorization: "Bearer " + token },
+        function(frame) {
+
+            console.log('Connected: ' + frame);
+
+            // 🔥 Subscribe AFTER connection
+            stompClient.subscribe('/topic/sos-alerts', function(message) {
+
+                var alertData = JSON.parse(message.body);
+                var existingItem = document.getElementById("sos-" + alertData.id);
+
+                if (alertData.status === "ACTIVE") {
+
+                    if (!existingItem) {
+                        var li = document.createElement("li");
+                        li.id = "sos-" + alertData.id;
+                        li.textContent =
+                            "🚨 SOS from " + alertData.studentName +
+                            " at (" + alertData.latitude + ", " + alertData.longitude + ")";
+                        document.getElementById("alerts").appendChild(li);
+                    }
+
+                } else if (alertData.status === "HANDLED") {
+
+                    if (existingItem) {
+                        existingItem.remove();
+                    }
+                }
+            });
+
+            // 🔥 Load existing ACTIVE SOS after connection
+            loadActiveSOS();
+        }
+    );
+
+    function loadActiveSOS() {
+        fetch("http://localhost:8081/api/sos/active", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(sos => {
+                displaySOS(sos);
+            });
+        })
+        .catch(error => console.error("Error loading active SOS:", error));
+    }
+
+    function displaySOS(alertData) {
+
+        var existingItem = document.getElementById("sos-" + alertData.id);
+        if (existingItem) return;
+
+        var li = document.createElement("li");
+        li.id = "sos-" + alertData.id;
+        li.textContent =
+            "🚨 SOS from " + alertData.studentName +
+            " at (" + alertData.latitude + ", " + alertData.longitude + ")";
+        document.getElementById("alerts").appendChild(li);
+    }
+</script>
+
+</body>
+</html>
