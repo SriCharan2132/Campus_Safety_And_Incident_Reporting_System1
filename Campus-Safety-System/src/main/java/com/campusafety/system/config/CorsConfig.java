@@ -15,7 +15,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("https://campus-safety-and-incident-reportin-blond.vercel.app");
+        config.addAllowedOriginPattern("https://*.vercel.app");
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         config.setAllowCredentials(true);
