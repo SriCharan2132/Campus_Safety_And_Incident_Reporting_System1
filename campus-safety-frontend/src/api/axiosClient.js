@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: "http://localhost:8081/api",
+  baseURL: "https://campus-safety-and-incident-reporting-08jc.onrender.com/api",
   // DO NOT set global Content-Type here
 });
 

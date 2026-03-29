@@ -24,7 +24,7 @@ function useSosSocket(email, isAuthenticated, role) {
 
     const client = new Client({
       webSocketFactory: () =>
-        new SockJS(`http://localhost:8081/ws?token=${encodeURIComponent(token)}`),
+        new SockJS(`https://campus-safety-and-incident-reporting-08jc.onrender.com/ws?token=${encodeURIComponent(token)}`),
       connectHeaders: { Authorization: `Bearer ${token}` },
       debug: () => {},
       reconnectDelay: 5000,

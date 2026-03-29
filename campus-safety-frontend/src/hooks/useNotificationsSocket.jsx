@@ -46,7 +46,7 @@ function useNotificationsSocket(email, isAuthenticated)  {
       return;
     }
 
-    const url = `http://localhost:8081/ws?token=${encodeURIComponent(token)}`;
+    const url = `https://campus-safety-and-incident-reporting-08jc.onrender.com/ws?token=${encodeURIComponent(token)}`;
     const sockFactory = () => new SockJS(url);
 
     const stompClient = new Client({

@@ -155,7 +155,7 @@ export default function IncidentChatPage() {
     if (!wsToken || !canView) return;
 
     const socket = new SockJS(
-      `http://localhost:8081/ws?token=${encodeURIComponent(wsToken)}`
+      `https://campus-safety-and-incident-reporting-08jc.onrender.com/ws?token=${encodeURIComponent(wsToken)}`
     );
 
     const client = new Client({
