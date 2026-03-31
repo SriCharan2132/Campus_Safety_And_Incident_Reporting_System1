@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { LogOut, UserCircle } from "lucide-react";
+import { LogOut, Shield, UserCircle } from "lucide-react";
 import NotificationBell from "../components/NotificationBell";
 import SosBell from "./SosBell";
 import { useAuth } from "../hooks/useAuth";
@@ -7,20 +8,24 @@ import { jwtDecode } from "jwt-decode";
 
 function Navbar() {
   const { user } = useAuth();
-  const email = user?.email;
+  const email = user?.email || user?.name || "User";
 
   const token = localStorage.getItem("token");
   let role = null;
 
   if (token) {
-    const decoded = jwtDecode(token);
-    role = decoded.role;
+    try {
+      const decoded = jwtDecode(token);
+      role = decoded.role || null;
+    } catch {
+      role = null;
+    }
   }
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  const getPageTitle = () => {
+  const pageTitle = useMemo(() => {
     const path = location.pathname;
 
     if (path.includes("/student/dashboard")) return "Dashboard";
@@ -34,8 +39,9 @@ function Navbar() {
     if (path.includes("/admin/security-analysis")) return "Security Analysis";
     if (path.includes("/sos")) return "SOS Monitoring";
     if (path.includes("/system-admin/users")) return "User Management";
+
     return "Campus Safety";
-  };
+  }, [location.pathname]);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -44,68 +50,86 @@ function Navbar() {
   };
 
   const roleColor = {
-  SYSTEM_ADMIN: "bg-black text-white",
-  ADMIN: "bg-purple-100 text-purple-700",
-  SECURITY: "bg-blue-100 text-blue-700",
-  STUDENT: "bg-green-100 text-green-700",
-};
+    SYSTEM_ADMIN: "bg-slate-950 text-white ring-slate-900/20",
+    ADMIN: "bg-violet-50 text-violet-700 ring-violet-200",
+    SECURITY: "bg-sky-50 text-sky-700 ring-sky-200",
+    STUDENT: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  };
+
+  const roleClass =
+    roleColor[role] ||
+    "bg-slate-100 text-slate-700 ring-slate-200";
 
   return (
-    <header className="h-16 px-6 flex items-center justify-between bg-white/70 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]">
+      <div className="relative">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent" />
 
-      {/* LEFT */}
-      <div className="flex flex-col">
-        <h2 className="text-lg font-semibold text-slate-800">
-          {getPageTitle()}
-        </h2>
+        <div className="flex h-auto min-h-16 flex-col gap-3 px-3 py-3 sm:px-4 lg:h-16 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+          {/* LEFT */}
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/10">
+              <Shield className="h-5 w-5 text-cyan-300" />
+            </div>
 
-        <p className="text-xs text-slate-500">
-          Campus Safety System
-        </p>
-      </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="truncate text-base font-semibold text-slate-900 sm:text-lg">
+                  {pageTitle}
+                </h2>
+                <span className="hidden rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 ring-1 ring-cyan-200 sm:inline-flex">
+                  Live
+                </span>
+              </div>
 
-      {/* RIGHT */}
-      <div className="flex items-center gap-4">
-
-        {/* SOS + Notifications */}
-        <div className="flex items-center gap-3">
-          <SosBell />
-          <NotificationBell />
-        </div>
-
-        {/* USER CARD */}
-        <div className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
-
-          {/* Avatar */}
-          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
-            {email?.[0]?.toUpperCase() || "U"}
+              <p className="truncate text-xs text-slate-500 sm:text-sm">
+                Campus Safety System
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-medium text-slate-700">
-              {email}
-            </span>
+          {/* RIGHT */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+              <SosBell />
+              <div className="h-6 w-px bg-slate-200" />
+              <NotificationBell />
+            </div>
 
-            {/* ROLE BADGE */}
-            {role && (
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full w-fit ${roleColor[role]}`}
-              >
-                {role}
-              </span>
-            )}
+            <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-semibold text-white shadow-sm">
+                {email?.[0]?.toUpperCase() || "U"}
+              </div>
+
+              <div className="min-w-0 leading-tight">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-800">
+                    {email}
+                  </span>
+                  <UserCircle className="hidden h-4 w-4 text-slate-400 sm:block" />
+                </div>
+
+                <div className="mt-1 flex items-center gap-2">
+                  {role && (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${roleClass}`}
+                    >
+                      {role.replaceAll("_", " ")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 active:scale-[0.99]"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
           </div>
         </div>
-
-        {/* LOGOUT */}
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 transition"
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
-
       </div>
     </header>
   );
