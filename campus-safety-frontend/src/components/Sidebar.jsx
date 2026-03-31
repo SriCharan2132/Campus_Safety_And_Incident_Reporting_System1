@@ -245,50 +245,58 @@ function Sidebar() {
   );
 
   const onFabPointerDown = (e) => {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
+  dragRef.current.dragging = true;
+  dragRef.current.moved = false;
+  dragRef.current.startTime = Date.now(); // NEW
+  dragRef.current.startX = e.clientX;
+  dragRef.current.startY = e.clientY;
+  dragRef.current.originX = fabPos.x;
+  dragRef.current.originY = fabPos.y;
 
-    dragRef.current.dragging = true;
-    dragRef.current.moved = false;
-    dragRef.current.startX = e.clientX;
-    dragRef.current.startY = e.clientY;
-    dragRef.current.originX = fabPos.x;
-    dragRef.current.originY = fabPos.y;
-    dragRef.current.pointerId = e.pointerId;
-
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+};
 
   const onFabPointerMove = (e) => {
-    if (!dragRef.current.dragging) return;
+  if (!dragRef.current.dragging) return;
 
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
+  const dx = e.clientX - dragRef.current.startX;
+  const dy = e.clientY - dragRef.current.startY;
 
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      dragRef.current.moved = true;
-    }
+  // Increase threshold for mobile
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    dragRef.current.moved = true;
+  }
 
-    const size = 44;
-    const margin = 6;
-    const nextX = clamp(dragRef.current.originX + dx, margin, window.innerWidth - size - margin);
-    const nextY = clamp(dragRef.current.originY + dy, margin, window.innerHeight - size - margin);
+  const size = 44;
+  const margin = 6;
 
-    if (dragRef.current.raf) cancelAnimationFrame(dragRef.current.raf);
-    dragRef.current.raf = requestAnimationFrame(() => {
-      setFabPos({ x: nextX, y: nextY });
-    });
-  };
+  const nextX = clamp(
+    dragRef.current.originX + dx,
+    margin,
+    window.innerWidth - size - margin
+  );
+
+  const nextY = clamp(
+    dragRef.current.originY + dy,
+    margin,
+    window.innerHeight - size - margin
+  );
+
+  setFabPos({ x: nextX, y: nextY });
+};
 
   const onFabPointerUp = () => {
-    const wasDragged = dragRef.current.moved;
-    dragRef.current.dragging = false;
-    dragRef.current.moved = false;
-    dragRef.current.pointerId = null;
+  const timeDiff = Date.now() - dragRef.current.startTime;
 
-    if (!wasDragged) {
-      setMobileOpen(true);
-    }
-  };
+  const isTap = timeDiff < 200 && !dragRef.current.moved;
+
+  dragRef.current.dragging = false;
+  dragRef.current.moved = false;
+
+  if (isTap) {
+    setMobileOpen(true); // open sidebar
+  }
+};
 
   return (
     <>
