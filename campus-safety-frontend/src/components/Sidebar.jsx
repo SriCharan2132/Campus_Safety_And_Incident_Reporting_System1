@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -15,50 +15,12 @@ import {
 import { useSosNotifications } from "../context/SosNotificationContext";
 import { jwtDecode } from "jwt-decode";
 
-const FAB_STORAGE_KEY = "campus_safety_sidebar_fab_pos";
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(value, max));
-}
-
-function getSavedFabPosition() {
-  if (typeof window === "undefined") return { x: 12, y: 12 };
-  try {
-    const raw = localStorage.getItem(FAB_STORAGE_KEY);
-    if (!raw) return { x: 12, y: 12 };
-    const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.x === "number" &&
-      typeof parsed?.y === "number" &&
-      Number.isFinite(parsed.x) &&
-      Number.isFinite(parsed.y)
-    ) {
-      return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return { x: 12, y: 12 };
-}
-
 function Sidebar() {
   const token = localStorage.getItem("token");
   const { activeCount } = useSosNotifications();
   const location = useLocation();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [fabPos, setFabPos] = useState(() => getSavedFabPosition());
-
-  const dragRef = useRef({
-    dragging: false,
-    moved: false,
-    startX: 0,
-    startY: 0,
-    originX: 0,
-    originY: 0,
-    pointerId: null,
-    raf: null,
-  });
 
   let role = null;
   let email = "";
@@ -148,30 +110,6 @@ function Sidebar() {
     };
   }, [mobileOpen]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(fabPos));
-    } catch {
-      // ignore
-    }
-  }, [fabPos]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const size = 44;
-      const margin = 8;
-      setFabPos((prev) => ({
-        x: clamp(prev.x, margin, window.innerWidth - size - margin),
-        y: clamp(prev.y, margin, window.innerHeight - size - margin),
-      }));
-    };
-
-    window.addEventListener("resize", handleResize);
-    handleResize();
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   const base =
     "group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200 overflow-hidden";
   const active =
@@ -244,76 +182,13 @@ function Sidebar() {
     </>
   );
 
-  const onFabPointerDown = (e) => {
-  dragRef.current.dragging = true;
-  dragRef.current.moved = false;
-  dragRef.current.startTime = Date.now(); // NEW
-  dragRef.current.startX = e.clientX;
-  dragRef.current.startY = e.clientY;
-  dragRef.current.originX = fabPos.x;
-  dragRef.current.originY = fabPos.y;
-
-  e.currentTarget.setPointerCapture?.(e.pointerId);
-};
-
-  const onFabPointerMove = (e) => {
-  if (!dragRef.current.dragging) return;
-
-  const dx = e.clientX - dragRef.current.startX;
-  const dy = e.clientY - dragRef.current.startY;
-
-  // Increase threshold for mobile
-  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-    dragRef.current.moved = true;
-  }
-
-  const size = 44;
-  const margin = 6;
-
-  const nextX = clamp(
-    dragRef.current.originX + dx,
-    margin,
-    window.innerWidth - size - margin
-  );
-
-  const nextY = clamp(
-    dragRef.current.originY + dy,
-    margin,
-    window.innerHeight - size - margin
-  );
-
-  setFabPos({ x: nextX, y: nextY });
-};
-
-  const onFabPointerUp = () => {
-  const timeDiff = Date.now() - dragRef.current.startTime;
-
-  const isTap = timeDiff < 200 && !dragRef.current.moved;
-
-  dragRef.current.dragging = false;
-  dragRef.current.moved = false;
-
-  if (isTap) {
-    setMobileOpen(true); // open sidebar
-  }
-};
-
   return (
     <>
-      {/* Floating mobile trigger only — draggable and takes no layout space */}
+      {/* Floating mobile trigger - fixed on left middle */}
       <button
         type="button"
-        onPointerDown={onFabPointerDown}
-        onPointerMove={onFabPointerMove}
-        onPointerUp={onFabPointerUp}
-        onPointerCancel={onFabPointerUp}
-        className="fixed z-50 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg ring-1 ring-white/10 transition hover:bg-slate-900 active:cursor-grabbing lg:hidden"
-        style={{
-          left: `${fabPos.x}px`,
-          top: `${fabPos.y}px`,
-          touchAction: "none",
-          userSelect: "none",
-        }}
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-2 top-1/2 z-50 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg ring-1 ring-white/10 transition hover:bg-slate-900 lg:hidden"
         aria-label="Open sidebar"
       >
         <Menu className="h-5 w-5" />
