@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -15,12 +15,50 @@ import {
 import { useSosNotifications } from "../context/SosNotificationContext";
 import { jwtDecode } from "jwt-decode";
 
+const FAB_STORAGE_KEY = "campus_safety_sidebar_fab_pos";
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(value, max));
+}
+
+function getSavedFabPosition() {
+  if (typeof window === "undefined") return { x: 12, y: 12 };
+  try {
+    const raw = localStorage.getItem(FAB_STORAGE_KEY);
+    if (!raw) return { x: 12, y: 12 };
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed?.x === "number" &&
+      typeof parsed?.y === "number" &&
+      Number.isFinite(parsed.x) &&
+      Number.isFinite(parsed.y)
+    ) {
+      return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return { x: 12, y: 12 };
+}
+
 function Sidebar() {
   const token = localStorage.getItem("token");
   const { activeCount } = useSosNotifications();
   const location = useLocation();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [fabPos, setFabPos] = useState(() => getSavedFabPosition());
+
+  const dragRef = useRef({
+    dragging: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+    pointerId: null,
+    raf: null,
+  });
 
   let role = null;
   let email = "";
@@ -39,7 +77,6 @@ function Sidebar() {
     const items = [
       {
         section: "Overview",
-        show: true,
         links: [
           {
             to: `/${role?.toLowerCase()}/dashboard`,
@@ -54,7 +91,6 @@ function Sidebar() {
     if (role === "STUDENT") {
       items.push({
         section: "My Activity",
-        show: true,
         links: [
           { to: "/student/incidents", label: "My Incidents", icon: AlertTriangle, exact: true },
           { to: "/student/incidents/report", label: "Report Incident", icon: FilePlus, exact: true },
@@ -66,11 +102,15 @@ function Sidebar() {
     if (role === "ADMIN") {
       items.push({
         section: "Management",
-        show: true,
         links: [
           { to: "/admin/incidents", label: "Manage Incidents", icon: AlertTriangle, exact: true },
           { to: "/admin/sos", label: "SOS Monitoring", icon: Siren, exact: true, isSos: true },
-          { to: "/admin/security-analysis", label: "Security Analysis", icon: BarChart3, exact: true },
+          {
+            to: "/admin/security-analysis",
+            label: "Security Analysis",
+            icon: BarChart3,
+            exact: true,
+          },
         ],
       });
     }
@@ -78,9 +118,13 @@ function Sidebar() {
     if (role === "SECURITY") {
       items.push({
         section: "Operations",
-        show: true,
         links: [
-          { to: "/security/incidents", label: "Assigned Incidents", icon: ShieldCheck, exact: true },
+          {
+            to: "/security/incidents",
+            label: "Assigned Incidents",
+            icon: ShieldCheck,
+            exact: true,
+          },
           { to: "/security/sos/active", label: "SOS Alerts", icon: Siren, exact: true, isSos: true },
         ],
       });
@@ -103,6 +147,30 @@ function Sidebar() {
       document.body.style.overflow = previousOverflow;
     };
   }, [mobileOpen]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(fabPos));
+    } catch {
+      // ignore
+    }
+  }, [fabPos]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const size = 44;
+      const margin = 8;
+      setFabPos((prev) => ({
+        x: clamp(prev.x, margin, window.innerWidth - size - margin),
+        y: clamp(prev.y, margin, window.innerHeight - size - margin),
+      }));
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const base =
     "group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200 overflow-hidden";
@@ -133,12 +201,7 @@ function Sidebar() {
       <p className={sectionTitle}>Overview</p>
 
       {navItems[0]?.links?.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.exact}
-          className={linkClass}
-        >
+        <NavLink key={item.to} to={item.to} end={item.exact} className={linkClass}>
           {({ isActive }) => (
             <>
               <item.icon size={18} />
@@ -181,28 +244,72 @@ function Sidebar() {
     </>
   );
 
+  const onFabPointerDown = (e) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+
+    dragRef.current.dragging = true;
+    dragRef.current.moved = false;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+    dragRef.current.originX = fabPos.x;
+    dragRef.current.originY = fabPos.y;
+    dragRef.current.pointerId = e.pointerId;
+
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const onFabPointerMove = (e) => {
+    if (!dragRef.current.dragging) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      dragRef.current.moved = true;
+    }
+
+    const size = 44;
+    const margin = 6;
+    const nextX = clamp(dragRef.current.originX + dx, margin, window.innerWidth - size - margin);
+    const nextY = clamp(dragRef.current.originY + dy, margin, window.innerHeight - size - margin);
+
+    if (dragRef.current.raf) cancelAnimationFrame(dragRef.current.raf);
+    dragRef.current.raf = requestAnimationFrame(() => {
+      setFabPos({ x: nextX, y: nextY });
+    });
+  };
+
+  const onFabPointerUp = () => {
+    const wasDragged = dragRef.current.moved;
+    dragRef.current.dragging = false;
+    dragRef.current.moved = false;
+    dragRef.current.pointerId = null;
+
+    if (!wasDragged) {
+      setMobileOpen(true);
+    }
+  };
+
   return (
     <>
-      {/* Mobile top bar */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-slate-950 px-4 py-3 text-white shadow-sm lg:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15"
-          aria-label="Open sidebar"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-
-        <div className="min-w-0 text-center">
-          <h1 className="truncate text-sm font-semibold">Campus Safety</h1>
-          <p className="truncate text-[11px] text-slate-300">Secure System</p>
-        </div>
-
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-400/15 ring-1 ring-cyan-400/20">
-          <Shield className="h-5 w-5 text-cyan-300" />
-        </div>
-      </header>
+      {/* Floating mobile trigger only — draggable and takes no layout space */}
+      <button
+        type="button"
+        onPointerDown={onFabPointerDown}
+        onPointerMove={onFabPointerMove}
+        onPointerUp={onFabPointerUp}
+        onPointerCancel={onFabPointerUp}
+        className="fixed z-50 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg ring-1 ring-white/10 transition hover:bg-slate-900 active:cursor-grabbing lg:hidden"
+        style={{
+          left: `${fabPos.x}px`,
+          top: `${fabPos.y}px`,
+          touchAction: "none",
+          userSelect: "none",
+        }}
+        aria-label="Open sidebar"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
 
       {/* Mobile overlay */}
       <div
@@ -215,65 +322,62 @@ function Sidebar() {
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[84vw] max-w-xs flex-col border-r border-white/10 bg-gradient-to-b from-slate-950 via-blue-950 to-blue-900 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[76vw] max-w-[220px] flex-col border-r border-white/10 bg-gradient-to-b from-slate-950 via-blue-950 to-blue-900 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Mobile sidebar"
       >
-        <div className="shrink-0 border-b border-white/10 px-4 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
-                <Shield className="h-6 w-6 text-cyan-300" />
+        <div className="shrink-0 border-b border-white/10 px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+                <Shield className="h-4.5 w-4.5 text-cyan-300" />
               </div>
 
               <div className="min-w-0">
-                <h1 className="truncate text-base font-semibold leading-5">
-                  Campus Safety
-                </h1>
-                <p className="text-xs text-blue-100/70">Secure System</p>
+                <h1 className="truncate text-xs font-semibold leading-4">Campus Safety</h1>
+                <p className="text-[10px] text-blue-100/70">Secure System</p>
               </div>
             </div>
 
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15"
               aria-label="Close sidebar"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
-            <div className="flex items-center justify-between gap-3">
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-2.5 py-2">
+            <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100/60">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-blue-100/60">
                   Signed in as
                 </p>
-                <p className="truncate text-sm font-medium text-white">
-                  {email || "User"}
-                </p>
+                <p className="truncate text-[11px] font-medium text-white">{email || "User"}</p>
               </div>
-              <div className="rounded-full bg-cyan-400/15 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 ring-1 ring-cyan-400/20">
+
+              <div className="rounded-full bg-cyan-400/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-200 ring-1 ring-cyan-400/20">
                 {role || "GUEST"}
               </div>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-2 custom-scrollbar">{renderNav()}</nav>
+        <nav className="flex-1 overflow-y-auto px-2 py-2 custom-scrollbar">{renderNav()}</nav>
 
-        <div className="shrink-0 border-t border-white/10 p-4">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-cyan-400/15 p-2 text-cyan-200 ring-1 ring-cyan-400/20">
-                <BadgeInfo size={16} />
+        <div className="shrink-0 border-t border-white/10 p-3">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
+            <div className="flex items-start gap-2.5">
+              <div className="rounded-lg bg-cyan-400/15 p-1.5 text-cyan-200 ring-1 ring-cyan-400/20">
+                <BadgeInfo size={14} />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Enterprise Control</p>
-                <p className="mt-1 text-xs leading-5 text-blue-100/70">
-                  Role-aware navigation and live incident alerts.
+                <p className="text-[11px] font-semibold text-white">Enterprise Control</p>
+                <p className="mt-0.5 text-[10px] leading-4 text-blue-100/70">
+                  Role-aware navigation and alerts.
                 </p>
               </div>
             </div>
@@ -290,9 +394,7 @@ function Sidebar() {
             </div>
 
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold leading-5">
-                Campus Safety
-              </h1>
+              <h1 className="truncate text-base font-semibold leading-5">Campus Safety</h1>
               <p className="text-xs text-blue-100/70">Secure System</p>
             </div>
           </div>
@@ -303,9 +405,7 @@ function Sidebar() {
                 <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100/60">
                   Signed in as
                 </p>
-                <p className="truncate text-sm font-medium text-white">
-                  {email || "User"}
-                </p>
+                <p className="truncate text-sm font-medium text-white">{email || "User"}</p>
               </div>
               <div className="rounded-full bg-cyan-400/15 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 ring-1 ring-cyan-400/20">
                 {role || "GUEST"}
@@ -314,9 +414,7 @@ function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-2 custom-scrollbar">
-          {renderNav()}
-        </nav>
+        <nav className="flex-1 overflow-y-auto px-3 py-2 custom-scrollbar">{renderNav()}</nav>
 
         <div className="shrink-0 border-t border-white/10 p-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
