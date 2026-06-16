@@ -4,7 +4,15 @@ import { loginUser } from "../../api/authApi";
 import { useNavigate } from "react-router-dom";
 import { getDashboardRoute } from "../../utils/getDashboardRoute";
 import { jwtDecode } from "jwt-decode";
-import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+  UserRound,
+  LockKeyhole,
+  ClipboardCheck,
+} from "lucide-react";
 
 function LoginPage() {
   const { login } = useContext(AuthContext);
@@ -42,10 +50,10 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#eff6ff,_#f8fafc_40%,_#e2e8f0_100%)] flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_80px_rgba(15,23,42,0.12)]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#eff6ff,_#f8fafc_40%,_#e2e8f0_100%)] px-4 py-6 sm:px-6 sm:py-8 flex items-center justify-center">
+      <div className="w-full max-w-6xl grid overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_80px_rgba(15,23,42,0.12)] lg:grid-cols-2">
         {/* Left Info Panel */}
-        <div className="hidden lg:flex flex-col justify-between p-10 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white">
+        <div className="hidden lg:flex flex-col justify-between gap-8 p-10 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
               <ShieldCheck size={14} />
@@ -61,6 +69,47 @@ function LoginPage() {
               to report incidents, manage responses, and track live updates in one
               secure place.
             </p>
+          </div>
+
+          {/* System Admin Login Info */}
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400/15 text-cyan-200 ring-1 ring-cyan-400/20">
+                <ClipboardCheck size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">System Admin Login</p>
+                <p className="text-xs text-white/60">
+                  Use this account to create and manage users.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                <div className="mb-2 flex items-center gap-2 text-xs font-medium text-white/60">
+                  <UserRound size={14} />
+                  Email
+                </div>
+                <p className="break-all text-sm font-semibold text-white">
+                  sysadmin@campus.com
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                <div className="mb-2 flex items-center gap-2 text-xs font-medium text-white/60">
+                  <LockKeyhole size={14} />
+                  Password
+                </div>
+                <p className="break-all text-sm font-semibold text-white">
+                  Admin@123
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-50">
+              Sign in with this account first to create users and set up roles.
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -80,7 +129,7 @@ function LoginPage() {
         </div>
 
         {/* Form Panel */}
-        <div className="flex items-center justify-center p-6 sm:p-10">
+        <div className="flex items-center justify-center p-5 sm:p-8 lg:p-10">
           <form
             onSubmit={handleSubmit}
             className="w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-6 sm:p-8 shadow-sm"
